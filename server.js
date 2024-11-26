@@ -8,13 +8,19 @@ const cors = require('cors');
 const app = express();
 const port = 3000;
 
+// Ensure the uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true }); // Creates the directory if it doesn't exist
+}
+
 // CORS configuration
 app.use(cors());
 
 // Set up file upload handling
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/');
+        cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
         cb(null, file.originalname);
@@ -28,8 +34,8 @@ app.use(express.static('public'));
 
 // Route for handling file upload and obfuscation
 app.post('/upload', upload.single('file'), (req, res) => {
-    const filePath = path.join(__dirname, 'uploads', req.file.filename);
-    const obfuscatedPath = path.join(__dirname, 'uploads', 'obfuscated-' + req.file.filename);
+    const filePath = path.join(uploadsDir, req.file.filename);
+    const obfuscatedPath = path.join(uploadsDir, 'obfuscated-' + req.file.filename);
 
     // Read the uploaded file
     fs.readFile(filePath, 'utf8', (err, data) => {
@@ -41,11 +47,11 @@ app.post('/upload', upload.single('file'), (req, res) => {
         // Save the obfuscated code to a new file
         fs.writeFile(obfuscatedPath, obfuscatedCode, 'utf8', (err) => {
             if (err) return res.status(500).send('Error saving obfuscated file.');
-
+            
             // Send the obfuscated file back to the user
             res.download(obfuscatedPath, 'obfuscated-' + req.file.filename, (err) => {
                 if (err) return res.status(500).send('Error sending the file.');
-
+                
                 // Clean up the uploaded and obfuscated files
                 fs.unlinkSync(filePath);
                 fs.unlinkSync(obfuscatedPath);
